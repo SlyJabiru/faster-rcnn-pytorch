@@ -97,17 +97,14 @@ def determine_anchor_label(anchors, ground_truth, pos_threshold=0.7, neg_thresho
     # First positive condition: Highest IoU with ground truth
     max_index = torch.argmax(ious).item()
     labels[max_index] = 1
-    print(labels)
     
-    # Second positive condition: Higher than 0.7 or equal wihh 0.7 IoU with ground truth
-    positive_flags = torch.ge(ious, 0.7)
+    # Second positive condition: Higher than pos_threshold or equal wihh pos_threshold IoU with ground truth
+    positive_flags = torch.ge(ious, pos_threshold)
     labels[positive_flags] = 1
-    print(labels)
     
-    # Negative condition: Among non-positive anchors, less than 0.3 IoU
-    negative_flags = torch.eq(labels, -1) & torch.lt(ious, 0.3)
+    # Negative condition: Among non-positive anchors, less than neg_threshold IoU
+    negative_flags = torch.eq(labels, -1) & torch.lt(ious, neg_threshold)
     labels[negative_flags] = 0
-    print(labels)
     
     return labels
 
