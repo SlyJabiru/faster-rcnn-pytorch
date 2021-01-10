@@ -69,7 +69,48 @@ def calc_iou_many_to_one(boxes, ground_truth):
 
     smooth = 1e-6    
     return (intersecion_area + smooth) / (union_area + smooth)
- 
+
+
+def determine_anchor_label(anchors, ground_truth, pos_threshold=0.7, neg_threshold=0.3):
+    """
+    Determine a label of anchors.
+    
+    Params:
+        Anchors: array of [x1, y1, x2, y2]. shape([N, 4])
+        ground_truth: ground truth bbox. shape([4])
+        pos_threshold: IoU Threshold used to determine positive anchor
+        neg_threshold: IoU Threshold used to determine negative anchor
+    
+    Return:
+        Tensor of integer values denoting the label of anchors. shape([N])
+        
+        Positive: 1
+        Negative: 0
+        Neither positive or negative: -1
+    """
+    
+    num_of_anchors = anchors.shape[0]
+    labels = -torch.ones(num_of_anchors)
+    
+    ious = calc_iou_many_to_one(anchors, ground_truth)
+    
+    # First positive condition: Highest IoU with ground truth
+    max_index = torch.argmax(ious).item()
+    labels[max_index] = 1
+    print(labels)
+    
+    # Second positive condition: Higher than 0.7 or equal wihh 0.7 IoU with ground truth
+    positive_flags = torch.ge(ious, 0.7)
+    labels[positive_flags] = 1
+    print(labels)
+    
+    # Negative condition: Among non-positive anchors, less than 0.3 IoU
+    negative_flags = torch.eq(labels, -1) & torch.lt(ious, 0.3)
+    labels[negative_flags] = 0
+    print(labels)
+    
+    return labels
+
 
 # Test
 if __name__ == '__main__':
@@ -107,4 +148,4 @@ if __name__ == '__main__':
     ])
     
     ret = calc_iou_many_to_one(many_boxes, ground_truth)
-    torch.all(torch.lt(torch.abs(torch.add(ret, -torch.tensor([1/12, 1/12, 1/12, 4/9, 1/9]))), threshold))
+    assert torch.all(torch.lt(torch.abs(torch.add(ret, -torch.tensor([1/12, 1/12, 1/12, 4/9, 1/9]))), threshold))
