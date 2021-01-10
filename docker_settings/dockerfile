@@ -1,0 +1,85 @@
+FROM nvidia/cuda:11.1-cudnn8-devel-ubuntu18.04
+
+
+ARG PYTHON_VERSION=3.8
+ARG WITH_TORCHVISION=1
+
+
+# Install necessary building tools and dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+         build-essential \
+         git \
+         curl \
+         sudo \
+         bzip2 \
+         libx11-6 \
+         ca-certificates \
+         libjpeg-dev \
+         libpng-dev && \
+     rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get -y dist-upgrade && apt-get purge -y libboost-all-dev && \
+    apt-get install -f -y libboost-all-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+
+# Create a working directory
+RUN mkdir /app
+WORKDIR /app
+
+
+# Install conda and torch
+RUN curl -o ~/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    chmod +x ~/miniconda.sh && \
+    ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh && \
+    /opt/conda/bin/conda install -y python=$PYTHON_VERSION numpy pyyaml scipy ipython mkl mkl-include ninja cython typing && \
+    /opt/conda/bin/conda clean -ya
+
+ARG CUDATOOLKIT_VERSION=11.0
+ENV CONDA_OVERRIDE_CUDA=11.0
+# It would be better if this cudatoolkit version matches with nvidia cuda version
+# In this file, nvidia cuda version: 11.1, but conda cudatoolkit version: 11.0, cause conda cudatoolkit does not support 11.1 yet
+RUN /opt/conda/bin/conda install -y pytorch torchvision torchaudio cudatoolkit=$CUDATOOLKIT_VERSION -c pytorch && \
+    /opt/conda/bin/conda clean -ya
+RUN /opt/conda/bin/pip install torchelastic
+
+
+ENV PATH /opt/conda/bin:$PATH
+
+RUN apt-get update
+RUN apt-get install -y vim lshw
+
+ENV LANG C.UTF-8
+
+
+# Install data science and machine learning packages using conda
+RUN /opt/conda/bin/conda install -y numpy seaborn && \
+    /opt/conda/bin/conda clean -ya
+
+RUN /opt/conda/bin/conda install -y -c conda-forge matplotlib && \
+    /opt/conda/bin/conda install -y -c anaconda  h5py && \
+    /opt/conda/bin/conda clean -ya
+
+
+# Install Jupyter
+RUN /opt/conda/bin/conda install -y -c conda-forge jupyterlab==2.2.9  && \
+    /opt/conda/bin/conda install -y -c conda-forge jupyter_http_over_ws ipywidgets  && \
+    /opt/conda/bin/conda clean -ya
+
+RUN /opt/conda/bin/conda install -y -c conda-forge nodejs==15.3.0
+
+RUN /opt/conda/bin/conda install -y -c anaconda nbformat && \
+    /opt/conda/bin/conda install -y ipykernel && \
+    /opt/conda/bin/conda clean -ya
+RUN jupyter serverextension enable --py jupyter_http_over_ws
+
+RUN jupyter labextension install @oriolmirosa/jupyterlab_materialdarker && \
+    jupyter labextension install @arbennett/base16-monokai && \
+    jupyter labextension install @arbennett/base16-one-dark && \
+    jupyter labextension install @telamonian/theme-darcula
+
+
+EXPOSE 9980
+
+RUN python3 -m ipykernel.kernelspec
