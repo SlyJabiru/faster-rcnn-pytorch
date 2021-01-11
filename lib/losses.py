@@ -93,7 +93,7 @@ def multitask_loss(pred_probs,
                    anchor_num=9, balance=10):
     """
     
-    L(p, t) = (1/N_cls) * sigma{L_cls(pi, pi_star)} + lambda * (1/N_reg) * sigma{L_reg(ti, ti_star)}
+    L(p, t) = (1/N_cls) * sigma{L_cls(pi, pi_star)} + lambda * (1/N_reg) * sigma{pi_star * L_reg(ti, ti_star)}
     """
     
     # Positive: 1 Negative: 0 Neither positive or negative: -1
@@ -108,11 +108,12 @@ def multitask_loss(pred_probs,
     
     cls_loss = rpn_loss_cls(valid_pred_probs, valid_labels)
     reg_loss = rpn_loss_reg(valid_pred_boxes, valid_anchor_boxes, gt_box)
+    positive_reg_loss = reg_loss * valid_labels
     
     n_cls = anchor_boxes.shape[0] / anchor_num
     n_reg = anchor_boxes.shape[0]
     
     cls_term = torch.sum(cls_loss) / n_cls
-    reg_term = torch.sum(reg_loss) / n_reg * balance
+    reg_term = torch.sum(positive_reg_loss) / n_reg * balance
     
     return cls_term + reg_term
